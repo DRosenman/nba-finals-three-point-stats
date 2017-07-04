@@ -1,0 +1,330 @@
+---
+title: "Creation of Series Averages DataFrames"
+output: html_notebook
+---
+
+The csv file [championsdata.csv](http://daverosenman.com/championsdata.csv) and [runnerupsdata.csv](http://daverosenman.com/runnerupsdata.csv) contain team totals from every NBA finals game since 1980. 'championsdata.csv' contains the team totals for the championship teams and 'runnerupsdata.csv' contains the teams totals for the losing team. 
+I wrangled those files from basketball-reference.com. 
+
+From the championsdata.csv and runnerupsdata.csv datasets, I created the following datasets:
+- [champs_and_runner_ups_series_averages.csv](http://daverosenman.com/champs_and_runner_ups_series_averages.csv): Data set containing series averages for both the champs and runner-up.
+- [champs_series_averages.csv](http://daverosenman.com/champs_series_averages.csv): Data set containing series averages for the champs only.
+- [runner_ups_series_averages.csv](http://daverosenman.com/runner_ups_series_averages.csv): Data set containing series averages for the runner-ups only.
+
+In the cells below, I created champs_and_runner_ups_series_averages.csv, champs_series_averages.csv, and runner_ups_series_averages.csv.
+
+```{r}
+suppressMessages(library(tidyverse))
+library(readr)
+```
+
+```{r}
+#NBA Finals game-by-game data
+#Champions Data
+champs <- readr::read_csv('championsdata.csv',col_types = cols())   
+#Runner-ups Data
+runner_ups <- read.csv('runnerupsdata.csv')
+```
+
+```{r}
+#Creation of Single Column data.frame with champion names for later use
+champ_team <- champs %>% filter(Game == 3) %>% select(Team)
+
+#Creation of Single Column data.frme with runner-up names for later use
+runner_up_team <- runner_ups %>% filter(Game == 3) %>% select(Team)
+
+#Blending together champs and runner_ups dataframes
+champs <- select(champs,-c(X,Team,FGP,TPP,FTP))
+runner_ups <- select(runner_ups,-c(Y,Team,FGP,TPP,FTP))
+champs_and_runner_ups_by_year <- data.frame(1980:2017,champ_team[1],runner_up_team[1])
+colnames(champs_and_runner_ups_by_year) <-  c('Year','Champion','Runner-Up')
+```
+
+```{r}
+#creation of dataframe with average values for champions and runner-ups in each finals series since 1980
+champs_averages <- champs %>% group_by(Year) %>% summarize_each(funs(mean))
+champs_averages['Status']  <-  'Champion'
+champs_averages['Team']  <- champ_team
+runner_ups_averages <- runner_ups %>% group_by(Year) %>% 
+summarize_each(funs(mean))
+runner_ups_averages['Status']  <-  'Runner Up'            
+runner_ups_averages['Team']  <- runner_up_team
+averages = rbind(champs_averages,runner_ups_averages)
+averages  <- averages %>% arrange(Year,Status)
+
+#dataframe of averages of champions and runner ups from each nba finals series since 1980
+averages <- averages %>% select(Year,Status,Team,everything()) %>%select(-c(Game,Win,Home,MP))
+```
+
+```{r}
+champs_and_runner_ups_series_averages <- averages %>% mutate(FGP = 100*FG/FGA,FTP = 100*FT/FTA,TPP = 100*TP/TPA)
+champs_and_runner_ups_series_averages <- champs_and_runner_ups_series_averages %>% select(Year:Team,PTS,FG,FGA,FGP,TP,TPA,TPP,FT:FTA,FTP,everything())
+champs_and_runner_ups_series_averages
+```
+
+```{r}
+#Creation of csvs
+write.csv(champs_and_runner_ups_series_averages,'champs_and_runner_ups_series_averages.csv')
+write.csv(filter(champs_and_runner_ups_series_averages,Status == 'Champion'),'champs_series_averages.csv')
+write.csv(filter(champs_and_runner_ups_series_averages,Status == 'Runner Up'),'runner_ups_series_averages.csv')
+```
+
+
+```{r}
+#Creation of Averages Grouped By Decade
+
+averages <- readr::read_csv('champs_and_runner_ups_series_averages.csv',col_types = cols())
+
+
+#Average Three Pointers Made Per Game, Decade  
+averages_over_years_TP <- function(start,end) {
+  year_string <- paste(as.character(start),as.character(end),sep = '-')
+  df <-  averages %>% filter((Year >= start) & (Year <= end)) %>% group_by(Status) %>% summarize(Average_Made_Threes = mean(TP)) %>% mutate(Years = year_string) %>% select(Years,Status, Average_Made_Threes)
+  df 
+}
+
+i <-  0
+tp_averages_by_decade = data.frame()
+while (i < 3) {
+  start <-  1980+10*i
+  end <- 1989+10*i
+  tp_averages_by_decade <- rbind(tp_averages_by_decade,averages_over_years_TP(start,end))
+  i = i + 1
+}
+tp_averages_by_decade <- rbind(tp_averages_by_decade,averages_over_years_TP(2010,2017))
+tp_averages_by_decade
+
+```
+```{r}
+#Average Three Point Attempts Per Game, Decade
+averages_over_years_TPA <- function(start,end) {
+  year_string <- paste(as.character(start),as.character(end),sep = '-')
+  df <-  averages %>% filter((Year >= start) & (Year <= end)) %>% group_by(Status) %>% summarize(Average_Attempted_Threes = mean(TPA)) %>% mutate(Years = year_string) %>% select(Years,Status, Average_Attempted_Threes)
+  df 
+}
+
+i <-  0
+tpa_averages_by_decade = data.frame()
+while (i < 3) {
+  start <-  1980+10*i
+  end <- 1989+10*i
+  tpa_averages_by_decade <- rbind(tpa_averages_by_decade,averages_over_years_TPA(start,end))
+  i = i + 1
+}
+tpa_averages_by_decade <- rbind(tpa_averages_by_decade,averages_over_years_TPA(2010,2017))
+
+tpa_averages_by_decade
+```
+
+```{r}
+#Three Point Percentage, Grouped By Decade
+years <- tpa_averages_by_decade$Years
+status <- tpa_averages_by_decade$Status
+tpp_by_decade <- data.frame(Years = years, Status = status,Three_Point_Percentage = 100*tp_averages_by_decade$Average_Made_Threes/tpa_averages_by_decade$Average_Attempted_Threes)
+tpp_by_decade
+```
+```{r}
+#Average Field Goals Made By Decade
+averages_over_years_FG <- function(start,end) {
+  year_string <- paste(as.character(start),as.character(end),sep = '-')
+  df <-  averages %>% filter((Year >= start) & (Year <= end)) %>% group_by(Status) %>% summarize(Average_Made_Field_Goals = mean(FG)) %>% mutate(Years = year_string) %>% select(Years,Status, Average_Made_Field_Goals)
+  df 
+}
+
+i <-  0
+fg_averages_by_decade = data.frame()
+while (i < 3) {
+  start <-  1980+10*i
+  end <- 1989+10*i
+  fg_averages_by_decade <- rbind(fg_averages_by_decade,averages_over_years_FG(start,end))
+  i = i + 1
+}
+fg_averages_by_decade <- rbind(fg_averages_by_decade,averages_over_years_FG(2010,2017))
+fg_averages_by_decade
+```
+
+```{r}
+#Average Field Goal Attempts by Decade
+averages_over_years_FGA <- function(start,end) {
+  year_string <- paste(as.character(start),as.character(end),sep = '-')
+  df <-  averages %>% filter((Year >= start) & (Year <= end)) %>% group_by(Status) %>% summarize(Average_Attempted_Field_Goals = mean(FGA)) %>% mutate(Years = year_string) %>% select(Years,Status, Average_Attempted_Field_Goals)
+  df 
+}
+
+i <-  0
+fga_averages_by_decade = data.frame()
+while (i < 3) {
+  start <-  1980+10*i
+  end <- 1989+10*i
+  fga_averages_by_decade <- rbind(fga_averages_by_decade,averages_over_years_FGA(start,end))
+  i = i + 1
+}
+fga_averages_by_decade <- rbind(fga_averages_by_decade,averages_over_years_FGA(2010,2017))
+fga_averages_by_decade
+
+```
+
+```{r}
+#Field Goal Percentage By Decade
+fgp_by_decade <- data.frame(Years = years, Status = status, FGP = fg_averages_by_decade$Average_Made_Field_Goals/fga_averages_by_decade$Average_Attempted_Field_Goals*100)
+fgp_by_decade
+```
+
+
+```{r}
+#Percentage of Made Field Goals That Were 3's, By Decade
+
+
+percentage_of_fgs_tps <- data.frame(Years = years,Status = status,Percentage_of_FGs_TPs = tp_averages_by_decade$Average_Made_Threes/fg_averages_by_decade$Average_Made_Field_Goals*100)
+percentage_of_fgs_tps
+
+```
+```{r}
+#Percentage of Field Goals Attempts That Were 3's, By Decade
+percentage_of_fgas_tps <- data.frame(Years = years,Status = status,Percentage_of_FGAs_TPs = tpa_averages_by_decade$Average_Attempted_Threes/fga_averages_by_decade$Average_Attempted_Field_Goals*100)
+percentage_of_fgas_tps
+```
+```{r}
+#Scoring Average By Decade
+averages_over_years_Points <- function(start,end) {
+  year_string <- paste(as.character(start),as.character(end),sep = '-')
+  df <-  averages %>% filter((Year >= start) & (Year <= end)) %>% group_by(Status) %>% summarize(Average_PTS = mean(PTS)) %>% mutate(Years = year_string) %>% select(Years,Status, Average_PTS)
+  df 
+}
+
+i <-  0
+pts_averages_by_decade = data.frame()
+while (i < 3) {
+  start <-  1980+10*i
+  end <- 1989+10*i
+  pts_averages_by_decade <- rbind(pts_averages_by_decade,averages_over_years_Points(start,end))
+  i = i + 1
+}
+pts_averages_by_decade <- rbind(pts_averages_by_decade,averages_over_years_Points(2010,2017))
+pts_averages_by_decade
+```
+
+
+```{r}
+#Percentage of Point From Three Pointers
+percentage_of_pts_tps_by_decade <- data.frame(Years = years,Status = status,Percentage_of_Points_TPs = 3*100*tp_averages_by_decade$Average_Made_Threes/pts_averages_by_decade$Average_PTS)
+percentage_of_pts_tps_by_decade 
+```
+
+```{r}
+#Two Point Field Goal Percentage By Decade
+two_point_field_goals_made_by_decade <- fg_averages_by_decade$Average_Made_Field_Goals- tp_averages_by_decade$Average_Made_Threes
+two_point_field_goals_attempted_by_decade <- fga_averages_by_decade$Average_Attempted_Field_Goals - tpa_averages_by_decade$Average_Attempted_Threes
+twop_fgp_by_decade <- data.frame(Years = years, Status = status,Two_Point_FGP =  100*two_point_field_goals_made_by_decade/two_point_field_goals_attempted_by_decade) 
+twop_fgp_by_decade
+
+```
+
+
+
+
+```{r}
+#Free Throws Made By Decade
+
+averages_over_years_FT <- function(start,end) {
+  year_string <- paste(as.character(start),as.character(end),sep = '-')
+  df <-  averages %>% filter((Year >= start) & (Year <= end)) %>% group_by(Status) %>% summarize(Average_FT = mean(FT)) %>% mutate(Years = year_string) %>% select(Years,Status, Average_FT)
+  df 
+}
+
+i <-  0
+ft_averages_by_decade = data.frame()
+while (i < 3) {
+  start <-  1980+10*i
+  end <- 1989+10*i
+  ft_averages_by_decade <- rbind(ft_averages_by_decade,averages_over_years_FT(start,end))
+  i = i + 1
+}
+ft_averages_by_decade <- rbind(ft_averages_by_decade,averages_over_years_FT(2010,2017))
+
+ft_averages_by_decade
+```
+
+```{r}
+#Free Throws Attempts By Decade
+
+averages_over_years_FTA <- function(start,end) {
+  year_string <- paste(as.character(start),as.character(end),sep = '-')
+  df <-  averages %>% filter((Year >= start) & (Year <= end)) %>% group_by(Status) %>% summarize(Average_FTA = mean(FTA)) %>% mutate(Years = year_string) %>% select(Years,Status, Average_FTA)
+  df 
+}
+
+i <-  0
+fta_averages_by_decade = data.frame()
+while (i < 3) {
+  start <-  1980+10*i
+  end <- 1989+10*i
+  fta_averages_by_decade <- rbind(fta_averages_by_decade,averages_over_years_FTA(start,end))
+  i = i + 1
+}
+fta_averages_by_decade <- rbind(fta_averages_by_decade,averages_over_years_FTA(2010,2017))
+
+fta_averages_by_decade
+
+```
+
+```{r}
+#Free Throw Percentage By Decade
+ftp_by_decade <- data.frame(Years = years, Status = status, FTP = ft_averages_by_decade$Average_FT/fta_averages_by_decade$Average_FTA*100)
+ftp_by_decade
+```
+```{r}
+#Scoring Breakdown 
+points_breakdown <- data.frame(Years=years, Status = status, Points_Average = pts_averages_by_decade$Average_PTS,Percent_Points_Twos = 2*fg_averages_by_decade$Average_Made_Field_Goals/pts_averages_by_decade$Average_PTS*100,Percent_Points_Three = percentage_of_pts_tps_by_decade$Percentage_of_Points_TPs,Percent_Points_FTs = 100*ft_averages_by_decade$Average_FT/pts_averages_by_decade$Average_PTS)
+points_breakdown
+```
+
+
+```{r}
+write_csv(pts_averages_by_decade,'decade_averages/pts_averages_by_decade.csv')
+write_csv(fg_averages_by_decade,'decade_averages/fg_averages_by_decade.csv')
+write_csv(fga_averages_by_decade,'decade_averages/fg_attempted_by_decade.csv')
+write_csv(fgp_by_decade,'decade_averages/fgp_by_decade.csv')
+write_csv(tp_averages_by_decade,'decade_averages/tp_averages_by_decade.csv')
+write_csv(tpa_averages_by_decade,'decade_averages/tpa_averages_by_decade.csv')
+write_csv(tpp_by_decade,'decade_averages/tpp_by_decade.csv')
+write_csv(percentage_of_fgs_tps,'decade_averages/percentage_of_fgs_tps_by_decade.csv')
+write_csv(percentage_of_fgas_tps,'decade_averages/percentage_of_fgas_tps_by_decade.csv')
+write_csv(percentage_of_pts_tps_by_decade ,'decade_averages/percentage_of_pts_tps_by_decade.csv')
+write_csv(twop_fgp_by_decade,'decade_averages/twop_fgp_by_decade.csv')
+write_csv(fta_averages_by_decade,'decade_averages/fta_averages_by_decade.csv')
+write_csv(ft_averages_by_decade,'decade_averages/ft_averages_by_decade.csv')
+write_csv(ftp_by_decade,'decade_averages/ftp_by_decade.csv')
+
+```
+
+```{r}
+#Stats By Decade, Combined
+stats_by_decade <- data.frame(Years = years, Status = status)
+stats_by_decade <- cbind(stats_by_decade,select(pts_averages_by_decade,-c(Years,Status)),select(fg_averages_by_decade))
+stats_by_decade <- cbind(stats_by_decade,select(fg_averages_by_decade,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(fga_averages_by_decade,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(fgp_by_decade,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(twop_fgp_by_decade,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(tp_averages_by_decade,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(tpa_averages_by_decade,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(tpp_by_decade,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(ft_averages_by_decade,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(fta_averages_by_decade,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(ftp_by_decade,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(percentage_of_fgs_tps,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(percentage_of_fgas_tps,-c(Years,Status)))
+stats_by_decade <- cbind(stats_by_decade,select(points_breakdown,-c(Years,Status,Points_Average)))
+
+stats_by_decade
+
+
+
+
+
+
+```
+
+```{r}
+write_csv(stats_by_decade,'stats_by_decade.csv')
+```
