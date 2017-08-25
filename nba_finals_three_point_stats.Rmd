@@ -1,39 +1,38 @@
 ---
 title: "NBA Finals Three Point Stats, 1980-2017"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document: default
 ---
 
 ##Intro
 The 1980 NBA Finals was the first Finals series since the NBA adopted the three point line. The three point shot did have an impact on offensive output at first. The 1980 NBA Champions, the L.A. Lakers, did not make a single three pointer in the entire six game series. Their opponents, the Philadelphia 76ers, made just one three pointer in the series. 
 
 ```{r}
-suppressWarnings(library(tidyverse))
+suppressMessages(library(tidyverse))
 library(readr)
 averages <- read.csv('champs_and_runner_ups_series_averages.csv')
-ggplot(data = filter(averages,Year < 1983),aes(x = Year, y = TP,fill = Status)) + 
+eighty_to_eightytwo <- ggplot(data = filter(averages,Year < 1983),aes(x = Year, y = TP,fill = Status)) + 
   geom_bar(stat = 'identity',position = 'dodge') +
   scale_x_continuous(breaks=seq(1980, 1984, 1)) +
   ggtitle("NBA Finals, 1980-82") +
   ylab('Average Three Point Field Goals') 
 
-```
-
-```{r}
-ggplot(data = averages,aes(x = Year, y = TP,fill = Status)) + 
+eighty_to_seventeen <- ggplot(data = averages,aes(x = Year, y = TP,fill = Status)) + 
   geom_bar(stat = 'identity',position = 'dodge') +
   scale_x_continuous(breaks=seq(1980, 2017, 1)) +
   ylab('Average Three Point Field Goals') +
     theme(axis.text.x = element_text(angle=90,hjust = 1,vjust = 1)) +
   ggtitle("NBA Finals, 1980-2017")
-```
 
-##Championship Series Team Averages, 1980-2017
-```{r}
-
-averages
-
+eighty_to_eightytwo 
+eighty_to_seventeen
 
 ```
+
+
+
 ##Three Point Shooting, Year By Year
 
 ```{r}
@@ -89,12 +88,10 @@ grid.arrange(points,tp,ppts_threes,tpp,tpa,perc_attempts_threes,ncol=3)
 ```
 
 ##Averages By Decade
-```{r}
-by_decade <- read.csv('stats_by_decade.csv')
-by_decade
-```
+
 
 ```{r}
+by_decade <- read.csv('stats_by_decade.csv')
 scoring_by_decade <- ggplot(data = by_decade,aes(x = Years, y = Average_PTS,fill = Status)) + 
   geom_bar(stat = 'identity',position = 'dodge') +
   ggtitle('Average Points Scored') + 
@@ -138,11 +135,6 @@ grid.arrange(scoring_by_decade,tp_by_decade,per_points_tp_by_decade,tpp_by_decad
 
 ```
 
-```{r}
- decade_grid <- arrangeGrob(scoring_by_decade,tp_by_decade,per_points_tp_by_decade,tpp_by_decade,tpa_by_decade,per_attempts_by_decade,ncol=3)
- ggsave(file="graphs/decade_grid.png", decade_grid)
- year_by_year_grid <- arrangeGrob(points,tp,ppts_threes,tpp,tpa,perc_attempts_threes,ncol=3)
- ggsave(file = 'graphs/year_by_year_grid.png',year_by_year_grid)
-```
+
 
 
