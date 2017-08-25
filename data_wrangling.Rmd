@@ -1,6 +1,8 @@
 ---
 title: "Creation of Series Averages DataFrames"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
 
 The csv file [championsdata.csv](http://daverosenman.com/championsdata.csv) and [runnerupsdata.csv](http://daverosenman.com/runnerupsdata.csv) contain team totals from every NBA finals game since 1980. 'championsdata.csv' contains the team totals for the championship teams and 'runnerupsdata.csv' contains the teams totals for the losing team. 
